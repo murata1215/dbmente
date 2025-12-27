@@ -147,7 +147,33 @@ def home(request: Request):
 def menu(request: Request):
     if not request.session.get("user"):
         return RedirectResponse(url="/login", status_code=303)
-    return templates.TemplateResponse("menu.html", {"request": request, "user": request.session["user"]})
+
+    user = request.session["user"]
+
+    menu_items_1 = [
+        {"type": "header", "label": "テーブル照会"},
+        {"type": "link", "label": "Z101 テーブル照会", "url": "/work"},
+    ]
+    menu_items_2 = [
+        {"type": "header", "label": "テーブルメンテ"},
+        {"type": "link", "label": "Z102 テーブルメンテ", "url": "/work"},
+    ]
+    menu_items_3 = [
+        {"type": "header", "label": "その他"},
+        {"type": "info", "label": "準備中..."},
+    ]
+
+    return templates.TemplateResponse(
+        "menu.html",
+        {
+            "request": request,
+            "user": user,
+            "title": "メインメニュー",
+            "menu_items_1": menu_items_1,
+            "menu_items_2": menu_items_2,
+            "menu_items_3": menu_items_3,
+        },
+    )
 
 
 @app.get("/work", response_class=HTMLResponse)

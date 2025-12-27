@@ -1,0 +1,29 @@
+<!doctype html>
+<html lang="ja">
+<head>
+  <meta charset="utf-8">
+  <title>{% block title %}dbmente{% endblock %}</title>
+  <style>
+    body { font-family: sans-serif; margin: 0; padding: 0; }
+    .header { background: #e8eefa; padding: 8px 16px; border-bottom: 1px solid #999; display: flex; justify-content: space-between; align-items: center; }
+    .header .user-info { font-size: 14px; }
+    .header .logout-btn { background: #fff; border: 1px solid #666; padding: 4px 12px; cursor: pointer; text-decoration: none; color: #333; }
+    .header .logout-btn:hover { background: #f0f0f0; }
+    .content { padding: 16px; }
+  </style>
+  {% block head %}{% endblock %}
+</head>
+<body>
+  <div class="header">
+    <div class="user-info">
+      <strong>{{ user.symei }}</strong> ({{ user.kc }} / {{ user.sycd }})
+    </div>
+    <form method="post" action="/logout" style="margin: 0;">
+      <button type="submit" class="logout-btn">ログアウト</button>
+    </form>
+  </div>
+  <div class="content">
+    {% block content %}{% endblock %}
+  </div>
+</body>
+</html>
