@@ -40,5 +40,18 @@ python -m uvicorn main:app --host 127.0.0.1 --port 8000 --reload
 ## Access
 - http://127.0.0.1:8000/login
 
+## Reference Java Code (Read-only)
 
+This directory contains legacy Java (JBoss/Seam) code.
+It is provided **for reference only**.
+
+Purpose:
+- Understand screen flow after login
+- Understand menu structure and authorization logic
+- Reproduce similar behavior in FastAPI
+
+Rules:
+- Do NOT modify these files
+- Do NOT port Java code line-by-line
+- Use this only as a functional and structural reference
 
