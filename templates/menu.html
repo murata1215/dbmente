@@ -1,59 +1,36 @@
 {% extends "base.html" %}
 
-{% block title %}メニュー - dbmente{% endblock %}
+{% block title %}メニュー - DBメンテ{% endblock %}
 
 {% block head %}
 <style>
-  .menu-title { text-align: center; font-size: 18px; font-weight: bold; margin: 16px 0; }
-  .menu-body { display: flex; gap: 8px; }
-  .menu-column { flex: 1; background: #e8eefa; border: 1px solid #999; padding: 8px; min-height: 300px; }
-  .menu-header { font-weight: bold; color: #333; padding: 4px 0; border-bottom: 1px solid #ccc; margin-bottom: 4px; }
-  .menu-link { display: block; padding: 4px 0; color: #0066cc; text-decoration: none; }
+  .menu-title { font-size: 18px; font-weight: bold; margin: 0 0 16px 0; padding-bottom: 8px; border-bottom: 2px solid #333; }
+  .menu-section { margin-bottom: 24px; }
+  .menu-section-title { font-weight: bold; color: #333; margin-bottom: 8px; font-size: 14px; }
+  .menu-list { list-style: none; padding: 0; margin: 0; }
+  .menu-list li { padding: 4px 0; }
+  .menu-link { color: #0066cc; text-decoration: none; }
   .menu-link:hover { text-decoration: underline; }
-  .menu-info { color: #666; font-size: 13px; padding: 4px 0; }
-  .menu-nav { margin-top: 16px; text-align: center; }
-  .menu-nav a { color: #0066cc; text-decoration: none; margin: 0 8px; }
-  .menu-nav a:hover { text-decoration: underline; }
+  .menu-info { color: #666; font-size: 13px; }
 </style>
 {% endblock %}
 
 {% block content %}
 <div class="menu-title">{{ title }}</div>
 
-<div class="menu-body">
-  <div class="menu-column">
-    {% for item in menu_items_1 %}
-      {% if item.type == 'header' %}
-        <div class="menu-header">{{ item.label }}</div>
-      {% elif item.type == 'link' %}
-        <a class="menu-link" href="{{ item.url }}">{{ item.label }}</a>
+{% for section in menu_sections %}
+<div class="menu-section">
+  <div class="menu-section-title">{{ section.title }}</div>
+  <ul class="menu-list">
+    {% for item in section.items %}
+      {% if item.type == 'link' %}
+        <li><a class="menu-link" href="{{ item.url }}">{{ item.label }}</a></li>
       {% elif item.type == 'info' %}
-        <div class="menu-info">{{ item.label }}</div>
+        <li><span class="menu-info">{{ item.label }}</span></li>
       {% endif %}
     {% endfor %}
-  </div>
-  <div class="menu-column">
-    {% for item in menu_items_2 %}
-      {% if item.type == 'header' %}
-        <div class="menu-header">{{ item.label }}</div>
-      {% elif item.type == 'link' %}
-        <a class="menu-link" href="{{ item.url }}">{{ item.label }}</a>
-      {% elif item.type == 'info' %}
-        <div class="menu-info">{{ item.label }}</div>
-      {% endif %}
-    {% endfor %}
-  </div>
-  <div class="menu-column">
-    {% for item in menu_items_3 %}
-      {% if item.type == 'header' %}
-        <div class="menu-header">{{ item.label }}</div>
-      {% elif item.type == 'link' %}
-        <a class="menu-link" href="{{ item.url }}">{{ item.label }}</a>
-      {% elif item.type == 'info' %}
-        <div class="menu-info">{{ item.label }}</div>
-      {% endif %}
-    {% endfor %}
-  </div>
+  </ul>
 </div>
+{% endfor %}
 
 {% endblock %}

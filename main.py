@@ -149,17 +149,19 @@ def menu(request: Request):
 
     user = request.session["user"]
 
-    menu_items_1 = [
-        {"type": "header", "label": "テーブル照会"},
-        {"type": "link", "label": "Z101 テーブル照会", "url": "/work"},
-    ]
-    menu_items_2 = [
-        {"type": "header", "label": "テーブルメンテ"},
-        {"type": "link", "label": "Z102 テーブルメンテ", "url": "/work"},
-    ]
-    menu_items_3 = [
-        {"type": "header", "label": "その他"},
-        {"type": "info", "label": "準備中..."},
+    menu_sections = [
+        {
+            "title": "テーブル照会",
+            "items": [
+                {"type": "link", "label": "テーブル一覧", "url": "/table/list"},
+            ],
+        },
+        {
+            "title": "テーブルメンテ",
+            "items": [
+                {"type": "link", "label": "テーブルメンテナンス", "url": "/table/maintenance"},
+            ],
+        },
     ]
 
     return templates.TemplateResponse(
@@ -168,9 +170,7 @@ def menu(request: Request):
             "request": request,
             "user": user,
             "title": "メインメニュー",
-            "menu_items_1": menu_items_1,
-            "menu_items_2": menu_items_2,
-            "menu_items_3": menu_items_3,
+            "menu_sections": menu_sections,
         },
     )
 
@@ -180,3 +180,26 @@ def work(request: Request):
     if not request.session.get("user"):
         return RedirectResponse(url="/login", status_code=303)
     return templates.TemplateResponse("work.html", {"request": request, "user": request.session["user"]})
+
+
+# ===== Table screens =====
+@app.get("/table/list", response_class=HTMLResponse)
+def table_list(request: Request):
+    """テーブル一覧画面 (Z101相当)"""
+    if not request.session.get("user"):
+        return RedirectResponse(url="/login", status_code=303)
+    return templates.TemplateResponse(
+        "table_list.html",
+        {"request": request, "user": request.session["user"]},
+    )
+
+
+@app.get("/table/maintenance", response_class=HTMLResponse)
+def table_maintenance(request: Request):
+    """テーブルメンテナンス画面 (Z102相当)"""
+    if not request.session.get("user"):
+        return RedirectResponse(url="/login", status_code=303)
+    return templates.TemplateResponse(
+        "table_maintenance.html",
+        {"request": request, "user": request.session["user"]},
+    )
