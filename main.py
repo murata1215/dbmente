@@ -191,82 +191,129 @@ def work(request: Request, user: dict = Depends(get_current_user)):
     return templates.TemplateResponse("work.html", {"request": request, "user": user})
 
 
-# ===== Table screens =====
-def get_all_tables() -> list[dict]:
-    """Oracle内の全テーブル一覧を取得"""
+# ===== Table screens (メタデータ管理) =====
+def search_tables(kc: str, sys: str = "", shu: str = "", tblnm: str = "", tbljnm: str = "") -> list[dict]:
+    """
+    ZM_TBL からテーブル定義一覧を検索
+    検索条件: sys(システム区分), shu(種別), tblnm(テーブルID), tbljnm(テーブル日本語名)
+    """
+    if pool is None:
+        return []
+    
+    sql = "SELECT TBLNM, TBLJNM, SYS, SHU FROM ZM_TBL WHERE KC = :kc"
+    params = {"kc": kc}
+    
+    if sys:
+        sql += " AND SYS = :sys"
+        params["sys"] = sys
+    if shu:
+        sql += " AND SHU = :shu"
+        params["shu"] = shu
+    if tblnm:
+        sql += " AND TBLNM LIKE :tblnm"
+        params["tblnm"] = f"%{tblnm}%"
+    if tbljnm:
+        sql += " AND TBLJNM LIKE :tbljnm"
+        params["tbljnm"] = f"%{tbljnm}%"
+    
+    sql += " ORDER BY TBLNM"
+    
+    try:
+        with pool.acquire() as conn:
+            with conn.cursor() as cur:
+                cur.execute(sql, params)
+                rows = cur.fetchall()
+        return [
+            {"tblnm": row[0], "tbljnm": row[1], "sys": row[2], "shu": row[3]}
+            for row in rows
+        ]
+    except Exception as e:
+        logger.error("search_tables error: %s", e)
+        return []
+
+
+def get_table_definition(kc: str, tblnm: str) -> dict | None:
+    """ZM_TBL から指定テーブルの定義を取得"""
+    if pool is None:
+        return None
+    
+    sql = "SELECT TBLNM, TBLJNM, SYS, SHU, UPCNT FROM ZM_TBL WHERE KC = :kc AND TBLNM = :tblnm"
+    
+    try:
+        with pool.acquire() as conn:
+            with conn.cursor() as cur:
+                cur.execute(sql, {"kc": kc, "tblnm": tblnm})
+                row = cur.fetchone()
+        if row:
+            return {"tblnm": row[0], "tbljnm": row[1], "sys": row[2], "shu": row[3], "upcnt": row[4]}
+        return None
+    except Exception as e:
+        logger.error("get_table_definition error: %s", e)
+        return None
+
+
+def get_column_definitions(kc: str, tblnm: str) -> list[dict]:
+    """
+    ZM_TBLITM から指定テーブルの項目定義一覧を取得
+    """
     if pool is None:
         return []
     
     sql = """
-    SELECT TABLE_NAME, NUM_ROWS, LAST_ANALYZED
-    FROM USER_TABLES
-    ORDER BY TABLE_NAME
+    SELECT TBLNM, TBLNO, RNM, BNM, KATA, LNG1, LNG2, HSU, DFLT, TKEY01, BIKO, UPCNT
+    FROM ZM_TBLITM
+    WHERE KC = :kc AND TBLNM = :tblnm
+    ORDER BY TBLNO
     """
     
     try:
         with pool.acquire() as conn:
             with conn.cursor() as cur:
-                cur.execute(sql)
+                cur.execute(sql, {"kc": kc, "tblnm": tblnm})
                 rows = cur.fetchall()
         return [
-            {"table_name": row[0], "num_rows": row[1] or 0, "last_analyzed": row[2]}
+            {
+                "tblnm": row[0],
+                "tblno": row[1],
+                "rnm": row[2],
+                "bnm": row[3],
+                "kata": row[4],
+                "lng1": row[5],
+                "lng2": row[6],
+                "hsu": row[7],
+                "dflt": row[8],
+                "tkey01": row[9],
+                "biko": row[10],
+                "upcnt": row[11],
+            }
             for row in rows
         ]
-    except Exception:
+    except Exception as e:
+        logger.error("get_column_definitions error: %s", e)
         return []
 
 
-def get_table_columns(table_name: str) -> list[dict]:
-    """指定テーブルのカラム情報を取得"""
-    if pool is None:
-        return []
-    
-    sql = """
-    SELECT COLUMN_NAME, DATA_TYPE, DATA_LENGTH, NULLABLE
-    FROM USER_TAB_COLUMNS
-    WHERE TABLE_NAME = :table_name
-    ORDER BY COLUMN_ID
-    """
-    
-    try:
-        with pool.acquire() as conn:
-            with conn.cursor() as cur:
-                cur.execute(sql, {"table_name": table_name.upper()})
-                rows = cur.fetchall()
-        return [
-            {"column_name": row[0], "data_type": row[1], "data_length": row[2], "nullable": row[3]}
-            for row in rows
-        ]
-    except Exception:
-        return []
-
-
-def get_table_data(table_name: str, limit: int = 100) -> tuple[list[str], list[list]]:
-    """指定テーブルのデータを取得 (最大limit件)"""
-    if pool is None:
-        return [], []
-    
-    columns = get_table_columns(table_name)
-    if not columns:
-        return [], []
-    
-    column_names = [c["column_name"] for c in columns]
-    sql = f"SELECT * FROM {table_name} WHERE ROWNUM <= :limit"
-    
-    try:
-        with pool.acquire() as conn:
-            with conn.cursor() as cur:
-                cur.execute(sql, {"limit": limit})
-                rows = cur.fetchall()
-        return column_names, [list(row) for row in rows]
-    except Exception:
-        return column_names, []
+def get_kata_display(kata: str) -> str:
+    """型コードを表示用文字列に変換"""
+    kata_map = {"9": "数値", "X": "文字", "V": "可変長", "T": "日時"}
+    return kata_map.get(kata, kata or "")
 
 
 @app.get("/table/list", response_class=HTMLResponse)
-def table_list(request: Request, user: dict = Depends(get_current_user)):
-    """テーブル一覧画面"""
-    tables = get_all_tables()
+def table_list(
+    request: Request,
+    user: dict = Depends(get_current_user),
+    sys: str = "",
+    shu: str = "",
+    tblnm: str = "",
+    tbljnm: str = "",
+):
+    """
+    テーブル一覧画面 (Z101相当)
+    ZM_TBL からテーブル定義を検索・表示
+    """
+    kc = user.get("kc", "")
+    tables = search_tables(kc, sys=sys, shu=shu, tblnm=tblnm, tbljnm=tbljnm)
     
     return templates.TemplateResponse(
         "table_list.html",
@@ -274,31 +321,41 @@ def table_list(request: Request, user: dict = Depends(get_current_user)):
             "request": request,
             "user": user,
             "tables": tables,
+            "search_sys": sys,
+            "search_shu": shu,
+            "search_tblnm": tblnm,
+            "search_tbljnm": tbljnm,
         },
     )
 
 
 @app.get("/table/maintenance", response_class=HTMLResponse)
-def table_maintenance(request: Request, table_name: str = "", user: dict = Depends(get_current_user)):
-    """テーブルメンテナンス画面"""
-    tables = get_all_tables()
+def table_maintenance(
+    request: Request,
+    user: dict = Depends(get_current_user),
+    tblnm: str = "",
+):
+    """
+    テーブルメンテナンス画面 (Z102相当)
+    ZM_TBLITM から項目定義を表示・編集
+    """
+    kc = user.get("kc", "")
+    table_def: dict | None = None
     columns: list[dict] = []
-    column_names: list[str] = []
-    rows: list[list] = []
     
-    if table_name:
-        columns = get_table_columns(table_name)
-        column_names, rows = get_table_data(table_name)
+    if tblnm:
+        table_def = get_table_definition(kc, tblnm)
+        if table_def:
+            columns = get_column_definitions(kc, tblnm)
     
     return templates.TemplateResponse(
         "table_maintenance.html",
         {
             "request": request,
             "user": user,
-            "tables": tables,
-            "selected_table": table_name,
+            "tblnm": tblnm,
+            "table_def": table_def,
             "columns": columns,
-            "column_names": column_names,
-            "rows": rows,
+            "get_kata_display": get_kata_display,
         },
     )
