@@ -149,17 +149,19 @@ def menu(request: Request):
 
     user = request.session["user"]
 
-    menu_items_1 = [
-        {"type": "header", "label": "テーブル照会"},
-        {"type": "link", "label": "Z101 テーブル照会", "url": "/work"},
-    ]
-    menu_items_2 = [
-        {"type": "header", "label": "テーブルメンテ"},
-        {"type": "link", "label": "Z102 テーブルメンテ", "url": "/work"},
-    ]
-    menu_items_3 = [
-        {"type": "header", "label": "その他"},
-        {"type": "info", "label": "準備中..."},
+    menu_sections = [
+        {
+            "title": "テーブル照会",
+            "items": [
+                {"type": "link", "label": "テーブル一覧", "url": "/table/list"},
+            ],
+        },
+        {
+            "title": "テーブルメンテ",
+            "items": [
+                {"type": "link", "label": "テーブルメンテナンス", "url": "/table/maintenance"},
+            ],
+        },
     ]
 
     return templates.TemplateResponse(
@@ -168,9 +170,7 @@ def menu(request: Request):
             "request": request,
             "user": user,
             "title": "メインメニュー",
-            "menu_items_1": menu_items_1,
-            "menu_items_2": menu_items_2,
-            "menu_items_3": menu_items_3,
+            "menu_sections": menu_sections,
         },
     )
 
