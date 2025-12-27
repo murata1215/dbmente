@@ -5,95 +5,103 @@
 {% block head %}
 <style>
   .page-title { font-size: 18px; font-weight: bold; margin: 0 0 16px 0; padding-bottom: 8px; border-bottom: 2px solid #333; }
-  .table-selector { margin-bottom: 16px; }
-  .table-selector label { font-weight: bold; margin-right: 8px; }
-  .table-selector select { padding: 4px 8px; font-size: 14px; }
-  .table-selector button { padding: 4px 12px; margin-left: 8px; }
+  .search-form { background: #f5f5f5; padding: 12px; margin-bottom: 16px; border: 1px solid #ddd; }
+  .search-form label { font-weight: bold; margin-right: 8px; }
+  .search-form input { padding: 4px 8px; width: 200px; }
+  .search-form button { padding: 6px 16px; margin-left: 8px; }
+  .table-header { background: #e8eefa; padding: 12px; margin-bottom: 16px; border: 1px solid #ccc; }
+  .table-header-row { margin-bottom: 4px; }
+  .table-header-label { font-weight: bold; display: inline-block; width: 120px; }
   .section-title { font-weight: bold; margin: 16px 0 8px 0; font-size: 14px; }
   .data-table { width: 100%; border-collapse: collapse; margin-bottom: 16px; }
   .data-table th, .data-table td { border: 1px solid #ccc; padding: 6px 8px; text-align: left; font-size: 13px; }
   .data-table th { background: #e8eefa; white-space: nowrap; }
   .data-table tr:hover { background: #f5f5f5; }
-  .data-table td { max-width: 200px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
-  .column-info { font-size: 12px; color: #666; }
   .no-data { color: #666; font-style: italic; padding: 16px 0; }
   .nav-links { margin-top: 16px; }
   .nav-links a { color: #0066cc; text-decoration: none; margin-right: 16px; }
   .nav-links a:hover { text-decoration: underline; }
-  .row-count { font-size: 13px; color: #666; margin-bottom: 8px; }
+  .result-count { font-size: 13px; color: #666; margin-bottom: 8px; }
+  .pk-mark { color: #c00; font-weight: bold; }
+  .required-mark { color: #c00; }
 </style>
 {% endblock %}
 
 {% block content %}
-<div class="page-title">テーブルメンテナンス</div>
+<div class="page-title">テーブルメンテナンス (Z102)</div>
 
-<div class="table-selector">
+<div class="search-form">
   <form method="get" action="/table/maintenance">
-    <label>テーブル選択:</label>
-    <select name="table_name" onchange="this.form.submit()">
-      <option value="">-- 選択してください --</option>
-      {% for table in tables %}
-      <option value="{{ table.table_name }}" {% if table.table_name == selected_table %}selected{% endif %}>{{ table.table_name }}</option>
-      {% endfor %}
-    </select>
+    <label>テーブルID:</label>
+    <input type="text" name="tblnm" value="{{ tblnm }}" placeholder="例: ZM_TBL">
+    <button type="submit">表示</button>
   </form>
 </div>
 
-{% if selected_table %}
-<div class="section-title">カラム情報: {{ selected_table }}</div>
-{% if columns %}
-<table class="data-table">
-  <thead>
-    <tr>
-      <th>カラム名</th>
-      <th>データ型</th>
-      <th>長さ</th>
-      <th>NULL許可</th>
-    </tr>
-  </thead>
-  <tbody>
-    {% for col in columns %}
-    <tr>
-      <td>{{ col.column_name }}</td>
-      <td>{{ col.data_type }}</td>
-      <td>{{ col.data_length }}</td>
-      <td>{{ col.nullable }}</td>
-    </tr>
-    {% endfor %}
-  </tbody>
-</table>
-{% else %}
-<p class="no-data">カラム情報を取得できませんでした。</p>
-{% endif %}
+{% if tblnm %}
+  {% if table_def %}
+  <div class="table-header">
+    <div class="table-header-row">
+      <span class="table-header-label">テーブルID:</span>
+      <span>{{ table_def.tblnm }}</span>
+    </div>
+    <div class="table-header-row">
+      <span class="table-header-label">テーブル名称:</span>
+      <span>{{ table_def.tbljnm }}</span>
+    </div>
+    <div class="table-header-row">
+      <span class="table-header-label">システム区分:</span>
+      <span>{{ table_def.sys }}</span>
+      <span class="table-header-label" style="margin-left: 24px;">種別:</span>
+      <span>{{ table_def.shu }}</span>
+    </div>
+  </div>
 
-<div class="section-title">データ (最大100件)</div>
-{% if rows %}
-<p class="row-count">{{ rows|length }}件表示</p>
-<div style="overflow-x: auto;">
-<table class="data-table">
-  <thead>
-    <tr>
-      {% for col_name in column_names %}
-      <th>{{ col_name }}</th>
+  <div class="section-title">項目定義一覧</div>
+  {% if columns %}
+  <p class="result-count">{{ columns|length }}件</p>
+  <div style="overflow-x: auto;">
+  <table class="data-table">
+    <thead>
+      <tr>
+        <th>NO</th>
+        <th>項目ID</th>
+        <th>項目名</th>
+        <th>型</th>
+        <th>長さ1</th>
+        <th>長さ2</th>
+        <th>必須</th>
+        <th>PK</th>
+        <th>デフォルト</th>
+        <th>備考</th>
+      </tr>
+    </thead>
+    <tbody>
+      {% for col in columns %}
+      <tr>
+        <td>{{ col.tblno }}</td>
+        <td>{{ col.bnm }}</td>
+        <td>{{ col.rnm }}</td>
+        <td>{{ get_kata_display(col.kata) }}</td>
+        <td>{{ col.lng1 }}</td>
+        <td>{{ col.lng2 or '' }}</td>
+        <td>{% if col.hsu == '1' %}<span class="required-mark">*</span>{% endif %}</td>
+        <td>{% if col.tkey01 == 'U' %}<span class="pk-mark">PK</span>{% endif %}</td>
+        <td>{{ col.dflt or '' }}</td>
+        <td>{{ col.biko or '' }}</td>
+      </tr>
       {% endfor %}
-    </tr>
-  </thead>
-  <tbody>
-    {% for row in rows %}
-    <tr>
-      {% for cell in row %}
-      <td title="{{ cell }}">{{ cell }}</td>
-      {% endfor %}
-    </tr>
-    {% endfor %}
-  </tbody>
-</table>
-</div>
+    </tbody>
+  </table>
+  </div>
+  {% else %}
+  <p class="no-data">項目定義がありません。</p>
+  {% endif %}
+  {% else %}
+  <p class="no-data">指定されたテーブルID「{{ tblnm }}」は存在しません。</p>
+  {% endif %}
 {% else %}
-<p class="no-data">データがありません。</p>
-{% endif %}
-{% else %}
-<p class="no-data">テーブルを選択してください。</p>
+<p class="no-data">テーブルIDを入力してください。</p>
 {% endif %}
 
 <div class="nav-links">
