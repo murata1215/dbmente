@@ -92,9 +92,9 @@ def verify_user(kc: str, sycd: str, password: str) -> tuple[bool, dict]:
 
 @app.get("/", response_class=HTMLResponse)
 def root(request: Request):
-    # ログイン後トップへ誘導
+    # ログイン済みなら /menu へ、未ログインなら /login へ
     if request.session.get("user"):
-        return RedirectResponse(url="/home", status_code=303)
+        return RedirectResponse(url="/menu", status_code=303)
     return RedirectResponse(url="/login", status_code=303)
 
 
@@ -126,7 +126,7 @@ def login_submit(
     # セッションに保存（超簡易）
     request.session["user"] = user
 
-    return RedirectResponse(url="/home", status_code=303)
+    return RedirectResponse(url="/menu", status_code=303)
 
 
 @app.post("/logout")
@@ -138,9 +138,8 @@ def logout(request: Request):
 # ===== After login pages =====
 @app.get("/home", response_class=HTMLResponse)
 def home(request: Request):
-    if not request.session.get("user"):
-        return RedirectResponse(url="/login", status_code=303)
-    return templates.TemplateResponse("home.html", {"request": request, "user": request.session["user"]})
+    # /home は廃止、/menu へリダイレクト
+    return RedirectResponse(url="/menu", status_code=303)
 
 
 @app.get("/menu", response_class=HTMLResponse)
