@@ -1,27 +1,47 @@
 <!doctype html>
-<html>
-<head><meta charset="utf-8"><title>Login</title></head>
+<html lang="ja">
+<head>
+  <meta charset="utf-8">
+  <title>ログイン - DBメンテ</title>
+  <style>
+    body { font-family: sans-serif; margin: 0; padding: 0; }
+    .header { background: #e8eefa; padding: 8px 16px; border-bottom: 1px solid #999; }
+    .header .app-title { font-size: 16px; font-weight: bold; color: #333; }
+    .content { padding: 16px; max-width: 400px; margin: 0 auto; }
+    .message-error { background: #ffe0e0; border: 1px solid #c00; color: #900; padding: 8px 12px; border-radius: 4px; margin-bottom: 16px; }
+    .form-group { margin-bottom: 12px; }
+    .form-group label { display: block; margin-bottom: 4px; font-weight: bold; }
+    .form-group input { width: 100%; padding: 6px; box-sizing: border-box; }
+    .submit-btn { background: #0066cc; color: #fff; border: none; padding: 8px 24px; cursor: pointer; }
+    .submit-btn:hover { background: #0055aa; }
+  </style>
+</head>
 <body>
-  <h2>ログイン</h2>
+  <div class="header">
+    <div class="app-title">DBメンテ</div>
+  </div>
+  <div class="content">
+    <h2>ログイン</h2>
 
-  {% if error %}
-    <p style="color:red;">{{ error }}</p>
-  {% endif %}
+    {% if error %}
+    <div class="message-error">{{ error }}</div>
+    {% endif %}
 
-  <form method="post" action="/login">
-    <div>
-      <label>会社コード(KC)</label><br>
-      <input name="kc" maxlength="2" required>
-    </div>
-    <div>
-      <label>ユーザーID(SYCD)</label><br>
-      <input name="sycd" maxlength="5" required>
-    </div>
-    <div>
-      <label>パスワード</label><br>
-      <input name="password" type="password" maxlength="20" required>
-    </div>
-    <button type="submit">ログイン</button>
-  </form>
+    <form method="post" action="/login">
+      <div class="form-group">
+        <label>会社コード(KC)</label>
+        <input name="kc" maxlength="2" required>
+      </div>
+      <div class="form-group">
+        <label>ユーザーID(SYCD)</label>
+        <input name="sycd" maxlength="5" required>
+      </div>
+      <div class="form-group">
+        <label>パスワード</label>
+        <input name="password" type="password" maxlength="20" required>
+      </div>
+      <button type="submit" class="submit-btn">ログイン</button>
+    </form>
+  </div>
 </body>
 </html>
