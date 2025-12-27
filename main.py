@@ -192,19 +192,113 @@ def work(request: Request, user: dict = Depends(get_current_user)):
 
 
 # ===== Table screens =====
+def get_all_tables() -> list[dict]:
+    """Oracle内の全テーブル一覧を取得"""
+    if pool is None:
+        return []
+    
+    sql = """
+    SELECT TABLE_NAME, NUM_ROWS, LAST_ANALYZED
+    FROM USER_TABLES
+    ORDER BY TABLE_NAME
+    """
+    
+    try:
+        with pool.acquire() as conn:
+            with conn.cursor() as cur:
+                cur.execute(sql)
+                rows = cur.fetchall()
+        return [
+            {"table_name": row[0], "num_rows": row[1] or 0, "last_analyzed": row[2]}
+            for row in rows
+        ]
+    except Exception:
+        return []
+
+
+def get_table_columns(table_name: str) -> list[dict]:
+    """指定テーブルのカラム情報を取得"""
+    if pool is None:
+        return []
+    
+    sql = """
+    SELECT COLUMN_NAME, DATA_TYPE, DATA_LENGTH, NULLABLE
+    FROM USER_TAB_COLUMNS
+    WHERE TABLE_NAME = :table_name
+    ORDER BY COLUMN_ID
+    """
+    
+    try:
+        with pool.acquire() as conn:
+            with conn.cursor() as cur:
+                cur.execute(sql, {"table_name": table_name.upper()})
+                rows = cur.fetchall()
+        return [
+            {"column_name": row[0], "data_type": row[1], "data_length": row[2], "nullable": row[3]}
+            for row in rows
+        ]
+    except Exception:
+        return []
+
+
+def get_table_data(table_name: str, limit: int = 100) -> tuple[list[str], list[list]]:
+    """指定テーブルのデータを取得 (最大limit件)"""
+    if pool is None:
+        return [], []
+    
+    columns = get_table_columns(table_name)
+    if not columns:
+        return [], []
+    
+    column_names = [c["column_name"] for c in columns]
+    sql = f"SELECT * FROM {table_name} WHERE ROWNUM <= :limit"
+    
+    try:
+        with pool.acquire() as conn:
+            with conn.cursor() as cur:
+                cur.execute(sql, {"limit": limit})
+                rows = cur.fetchall()
+        return column_names, [list(row) for row in rows]
+    except Exception:
+        return column_names, []
+
+
 @app.get("/table/list", response_class=HTMLResponse)
 def table_list(request: Request, user: dict = Depends(get_current_user)):
-    """テーブル一覧画面 (Z101相当)"""
+    """テーブル一覧画面"""
+    tables = get_all_tables()
+    
     return templates.TemplateResponse(
         "table_list.html",
-        {"request": request, "user": user},
+        {
+            "request": request,
+            "user": user,
+            "tables": tables,
+        },
     )
 
 
 @app.get("/table/maintenance", response_class=HTMLResponse)
-def table_maintenance(request: Request, user: dict = Depends(get_current_user)):
-    """テーブルメンテナンス画面 (Z102相当)"""
+def table_maintenance(request: Request, table_name: str = "", user: dict = Depends(get_current_user)):
+    """テーブルメンテナンス画面"""
+    tables = get_all_tables()
+    columns: list[dict] = []
+    column_names: list[str] = []
+    rows: list[list] = []
+    
+    if table_name:
+        columns = get_table_columns(table_name)
+        column_names, rows = get_table_data(table_name)
+    
     return templates.TemplateResponse(
         "table_maintenance.html",
-        {"request": request, "user": user},
+        {
+            "request": request,
+            "user": user,
+            "tables": tables,
+            "selected_table": table_name,
+            "columns": columns,
+            "column_names": column_names,
+            "rows": rows,
+        },
     )
