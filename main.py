@@ -1,11 +1,20 @@
+import logging
 import os
 from dotenv import load_dotenv
 
 import oracledb
-from fastapi import FastAPI, Request, Form
+from fastapi import FastAPI, Request, Form, Depends
 from fastapi.responses import HTMLResponse, RedirectResponse
 from fastapi.templating import Jinja2Templates
 from starlette.middleware.sessions import SessionMiddleware
+
+# ===== logging =====
+logging.basicConfig(
+    level=logging.INFO,
+    format="%(asctime)s [%(levelname)s] %(message)s",
+    datefmt="%Y-%m-%d %H:%M:%S",
+)
+logger = logging.getLogger(__name__)
 
 
 # ===== env =====
@@ -53,11 +62,16 @@ def shutdown():
         pool = None
 
 
-def require_login(request: Request):
-    """未ログインなら /login へ飛ばす（簡易ガード）"""
+def get_current_user(request: Request) -> dict:
+    """
+    認証済みユーザーを取得する依存関数。
+    未ログインの場合は /login へリダイレクト。
+    FastAPI の Depends() で使用する。
+    """
     user = request.session.get("user")
     if not user:
         raise RedirectResponse(url="/login", status_code=303)
+    return user
 
 
 def verify_user(kc: str, sycd: str, password: str) -> tuple[bool, dict]:
@@ -117,14 +131,16 @@ def login_submit(
 
     ok, user = verify_user(kc, sycd, password)
     if not ok:
+        logger.warning("Login failed: KC=%s, SYCD=%s", kc, sycd)
         return templates.TemplateResponse(
             "login.html",
             {"request": request, "error": "会社コード / ユーザーID / パスワードが正しくありません。"},
             status_code=401,
         )
 
-    # セッションに保存（超簡易）
+    # セッションに保存
     request.session["user"] = user
+    logger.info("Login success: KC=%s, SYCD=%s, SYMEI=%s", user["kc"], user["sycd"], user["symei"])
 
     return RedirectResponse(url="/menu", status_code=303)
 
@@ -143,12 +159,7 @@ def home(request: Request):
 
 
 @app.get("/menu", response_class=HTMLResponse)
-def menu(request: Request):
-    if not request.session.get("user"):
-        return RedirectResponse(url="/login", status_code=303)
-
-    user = request.session["user"]
-
+def menu(request: Request, user: dict = Depends(get_current_user)):
     menu_sections = [
         {
             "title": "テーブル照会",
@@ -176,30 +187,24 @@ def menu(request: Request):
 
 
 @app.get("/work", response_class=HTMLResponse)
-def work(request: Request):
-    if not request.session.get("user"):
-        return RedirectResponse(url="/login", status_code=303)
-    return templates.TemplateResponse("work.html", {"request": request, "user": request.session["user"]})
+def work(request: Request, user: dict = Depends(get_current_user)):
+    return templates.TemplateResponse("work.html", {"request": request, "user": user})
 
 
 # ===== Table screens =====
 @app.get("/table/list", response_class=HTMLResponse)
-def table_list(request: Request):
+def table_list(request: Request, user: dict = Depends(get_current_user)):
     """テーブル一覧画面 (Z101相当)"""
-    if not request.session.get("user"):
-        return RedirectResponse(url="/login", status_code=303)
     return templates.TemplateResponse(
         "table_list.html",
-        {"request": request, "user": request.session["user"]},
+        {"request": request, "user": user},
     )
 
 
 @app.get("/table/maintenance", response_class=HTMLResponse)
-def table_maintenance(request: Request):
+def table_maintenance(request: Request, user: dict = Depends(get_current_user)):
     """テーブルメンテナンス画面 (Z102相当)"""
-    if not request.session.get("user"):
-        return RedirectResponse(url="/login", status_code=303)
     return templates.TemplateResponse(
         "table_maintenance.html",
-        {"request": request, "user": request.session["user"]},
+        {"request": request, "user": user},
     )
