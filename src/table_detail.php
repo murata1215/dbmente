@@ -4,16 +4,15 @@
  */
 require_once __DIR__ . '/includes/config.php';
 require_once __DIR__ . '/includes/Database.php';
-
-session_start();
+require_once __DIR__ . '/includes/auth.php';
 
 $tblnm = strtoupper(trim($_GET['tblnm'] ?? ''));
+$isNew = isset($_GET['new']) && $_GET['new'] == '1';
 $table = null;
 $items = [];
 $error = null;
-$message = null;
 
-if (!empty($tblnm)) {
+if (!$isNew && !empty($tblnm)) {
     try {
         $db = Database::getInstance();
 
@@ -33,7 +32,12 @@ if (!empty($tblnm)) {
     }
 }
 
-$pageTitle = 'テーブル詳細 - ' . $tblnm;
+// 新規モードの場合は空のテーブル情報
+if ($isNew) {
+    $table = ['TBLNM' => '', 'TBLJNM' => ''];
+}
+
+$pageTitle = $isNew ? '新規テーブル作成' : 'テーブル詳細 - ' . $tblnm;
 include __DIR__ . '/templates/header.php';
 ?>
 
@@ -55,41 +59,44 @@ include __DIR__ . '/templates/header.php';
 .edit-table .col-cb { width: 40px; text-align: center; }
 .edit-table .col-dflt { width: 100px; }
 .edit-table .col-biko { width: 150px; }
-.action-buttons { margin-bottom: 10px; display: flex; gap: 10px; }
+.action-buttons { display: flex; gap: 10px; }
 .action-buttons .btn { padding: 6px 15px; font-size: 13px; }
+#csvFile { display: none; }
 </style>
 
 <?php if ($error): ?>
     <div class="message message-error"><?= htmlspecialchars($error) ?></div>
 <?php endif; ?>
 
-<?php if ($message): ?>
-    <div class="message message-info"><?= htmlspecialchars($message) ?></div>
-<?php endif; ?>
-
-<?php if ($table): ?>
+<?php if ($table !== null): ?>
 <!-- テーブル基本情報 -->
 <div class="search-box">
-    <h2>テーブル情報</h2>
+    <h2><?= $isNew ? '新規テーブル作成' : 'テーブル情報' ?></h2>
     <form id="tableForm">
-        <input type="hidden" name="tblnm_org" value="<?= htmlspecialchars(trim($table['TBLNM'])) ?>">
+        <input type="hidden" name="tblnm_org" value="<?= htmlspecialchars(trim($table['TBLNM'] ?? '')) ?>">
+        <input type="hidden" name="is_new" value="<?= $isNew ? '1' : '0' ?>">
         <table style="width: 100%;">
             <tr>
                 <td style="width: 120px; font-weight: bold; padding: 5px;">テーブル名</td>
                 <td style="padding: 5px;">
-                    <input type="text" name="tblnm" value="<?= htmlspecialchars(trim($table['TBLNM'])) ?>" style="width: 200px; text-transform: uppercase;">
+                    <input type="text" name="tblnm" value="<?= htmlspecialchars(trim($table['TBLNM'] ?? '')) ?>" style="width: 200px; text-transform: uppercase;" placeholder="例: USER_MASTER">
                 </td>
                 <td style="width: 120px; font-weight: bold; padding: 5px;">日本語名</td>
                 <td style="padding: 5px;">
-                    <input type="text" name="tbljnm" value="<?= htmlspecialchars(trim($table['TBLJNM'] ?? '')) ?>" style="width: 300px;">
+                    <input type="text" name="tbljnm" value="<?= htmlspecialchars(trim($table['TBLJNM'] ?? '')) ?>" style="width: 300px;" placeholder="例: ユーザーマスタ">
                 </td>
             </tr>
         </table>
     </form>
     <div class="button-row">
         <button type="button" class="btn btn-primary" onclick="saveTable()">保存</button>
+        <?php if ($isNew): ?>
+        <input type="file" id="csvFile" accept=".csv">
+        <button type="button" class="btn btn-success" onclick="document.getElementById('csvFile').click()">CSV取り込み</button>
+        <?php else: ?>
         <a href="csv_download.php?tblnm=<?= urlencode($tblnm) ?>&type=detail" class="btn btn-success">CSV出力</a>
         <a href="sql_download.php?tblnm=<?= urlencode($tblnm) ?>" class="btn btn-success">CREATE SQL</a>
+        <?php endif; ?>
         <a href="table_list.php" class="btn btn-secondary">戻る</a>
     </div>
 </div>
@@ -144,6 +151,7 @@ include __DIR__ . '/templates/header.php';
 
 <script>
 let rowCounter = <?= count($items) ?>;
+const isNew = <?= $isNew ? 'true' : 'false' ?>;
 
 // 全選択/解除
 function toggleAll(checkbox) {
@@ -173,20 +181,20 @@ function deleteRows() {
 }
 
 // 新しい行のHTMLを生成
-function createNewRow(no) {
+function createNewRow(no, data = {}) {
     const tr = document.createElement('tr');
     tr.innerHTML = `
         <td class="col-check"><input type="checkbox" name="row_check" value="${rowCounter}"></td>
         <td class="col-no"><input type="text" name="tblno[]" value="${no}" style="width:35px; text-align:center;"></td>
-        <td class="col-bnm"><input type="text" name="bnm[]" value="" style="text-transform: uppercase;"></td>
-        <td class="col-rnm"><input type="text" name="rnm[]" value=""></td>
-        <td class="col-kata"><input type="text" name="kata[]" value="" style="text-transform: uppercase;"></td>
-        <td class="col-lng"><input type="number" name="lng1[]" value="0"></td>
-        <td class="col-lng"><input type="number" name="lng2[]" value="0"></td>
-        <td class="col-cb"><input type="checkbox" name="hsu[]" value="1"></td>
-        <td class="col-dflt"><input type="text" name="dflt[]" value=""></td>
-        <td class="col-cb"><input type="checkbox" name="tkey01[]" value="1"></td>
-        <td class="col-biko"><input type="text" name="biko[]" value=""></td>
+        <td class="col-bnm"><input type="text" name="bnm[]" value="${data.bnm || ''}" style="text-transform: uppercase;"></td>
+        <td class="col-rnm"><input type="text" name="rnm[]" value="${data.rnm || ''}"></td>
+        <td class="col-kata"><input type="text" name="kata[]" value="${data.kata || ''}" style="text-transform: uppercase;"></td>
+        <td class="col-lng"><input type="number" name="lng1[]" value="${data.lng1 || 0}"></td>
+        <td class="col-lng"><input type="number" name="lng2[]" value="${data.lng2 || 0}"></td>
+        <td class="col-cb"><input type="checkbox" name="hsu[]" value="1" ${data.hsu === '1' ? 'checked' : ''}></td>
+        <td class="col-dflt"><input type="text" name="dflt[]" value="${data.dflt || ''}"></td>
+        <td class="col-cb"><input type="checkbox" name="tkey01[]" value="1" ${data.tkey01 === '1' ? 'checked' : ''}></td>
+        <td class="col-biko"><input type="text" name="biko[]" value="${data.biko || ''}"></td>
     `;
     tr.dataset.row = rowCounter++;
     return tr;
@@ -198,11 +206,9 @@ function addRowAbove() {
     const tbody = document.getElementById('itemBody');
 
     if (rows.length === 0) {
-        // 選択なしの場合、一番上に追加
         const newRow = createNewRow(1);
         tbody.insertBefore(newRow, tbody.firstChild);
     } else {
-        // 選択行の上に追加
         rows.forEach(row => {
             const currentNo = parseInt(row.querySelector('input[name="tblno[]"]').value) || 1;
             const newRow = createNewRow(currentNo);
@@ -219,12 +225,10 @@ function addRowBelow() {
     const tbody = document.getElementById('itemBody');
 
     if (rows.length === 0) {
-        // 選択なしの場合、一番下に追加
         const lastNo = tbody.rows.length + 1;
         const newRow = createNewRow(lastNo);
         tbody.appendChild(newRow);
     } else {
-        // 選択行の下に追加（逆順で処理）
         [...rows].reverse().forEach(row => {
             const currentNo = parseInt(row.querySelector('input[name="tblno[]"]').value) || 1;
             const newRow = createNewRow(currentNo + 1);
@@ -250,9 +254,16 @@ function updateItemCount() {
 
 // 保存処理
 function saveTable() {
+    const tblnmValue = document.querySelector('input[name="tblnm"]').value.toUpperCase().trim();
+
+    if (!tblnmValue) {
+        alert('テーブル名を入力してください');
+        return;
+    }
+
     const formData = {
         tblnm_org: document.querySelector('input[name="tblnm_org"]').value,
-        tblnm: document.querySelector('input[name="tblnm"]').value.toUpperCase().trim(),
+        tblnm: tblnmValue,
         tbljnm: document.querySelector('input[name="tbljnm"]').value.trim(),
         items: []
     };
@@ -283,10 +294,8 @@ function saveTable() {
     .then(data => {
         if (data.success) {
             alert('保存しました');
-            if (formData.tblnm !== formData.tblnm_org) {
-                // テーブル名が変更された場合、新しいURLに遷移
-                window.location.href = 'table_detail.php?tblnm=' + encodeURIComponent(formData.tblnm);
-            }
+            // 保存後は編集モードのURLに遷移
+            window.location.href = 'table_detail.php?tblnm=' + encodeURIComponent(formData.tblnm);
         } else {
             alert('エラー: ' + data.error);
         }
@@ -294,6 +303,104 @@ function saveTable() {
     .catch(err => {
         alert('通信エラー: ' + err);
     });
+}
+
+// CSV取り込み処理
+document.getElementById('csvFile')?.addEventListener('change', function(e) {
+    const file = e.target.files[0];
+    if (!file) return;
+
+    const reader = new FileReader();
+    reader.onload = function(e) {
+        const content = e.target.result;
+        importCsv(content);
+    };
+    reader.readAsText(file, 'UTF-8');
+});
+
+function importCsv(content) {
+    const lines = content.split(/\r?\n/);
+    const tbody = document.getElementById('itemBody');
+
+    // 既存行をクリア
+    tbody.innerHTML = '';
+    rowCounter = 0;
+
+    let rowNo = 1;
+    for (let i = 0; i < lines.length; i++) {
+        const line = lines[i].trim();
+        if (!line) continue;
+
+        // CSVパース（簡易版：カンマ区切り、ダブルクォート対応）
+        const cols = parseCsvLine(line);
+
+        // ヘッダー行をスキップ（1行目がNo,物理名...で始まる場合）
+        if (i === 0 && (cols[0] === 'No' || cols[0] === 'NO' || cols[0] === 'no')) {
+            continue;
+        }
+
+        // CSVレイアウト: No, 物理名, 論理名, 型, 長さ1, 長さ2, 必須, デフォルト, PK, 備考
+        // Noはスキップして自動採番
+        const data = {
+            bnm: (cols[1] || '').trim(),
+            rnm: (cols[2] || '').trim(),
+            kata: (cols[3] || '').trim(),
+            lng1: parseInt(cols[4]) || 0,
+            lng2: parseInt(cols[5]) || 0,
+            hsu: (cols[6] || '').trim() === '1' ? '1' : '0',
+            dflt: (cols[7] || '').trim(),
+            tkey01: (cols[8] || '').trim() === '1' ? '1' : '0',
+            biko: (cols[9] || '').trim()
+        };
+
+        // 物理名が空の行はスキップ
+        if (!data.bnm) continue;
+
+        const newRow = createNewRow(rowNo++, data);
+        tbody.appendChild(newRow);
+    }
+
+    updateItemCount();
+    alert('CSVを取り込みました: ' + (rowNo - 1) + '件');
+
+    // ファイル選択をリセット
+    document.getElementById('csvFile').value = '';
+}
+
+// CSV行パース（ダブルクォート対応）
+function parseCsvLine(line) {
+    const result = [];
+    let current = '';
+    let inQuotes = false;
+
+    for (let i = 0; i < line.length; i++) {
+        const char = line[i];
+
+        if (inQuotes) {
+            if (char === '"') {
+                if (line[i + 1] === '"') {
+                    current += '"';
+                    i++;
+                } else {
+                    inQuotes = false;
+                }
+            } else {
+                current += char;
+            }
+        } else {
+            if (char === '"') {
+                inQuotes = true;
+            } else if (char === ',') {
+                result.push(current);
+                current = '';
+            } else {
+                current += char;
+            }
+        }
+    }
+    result.push(current);
+
+    return result;
 }
 </script>
 

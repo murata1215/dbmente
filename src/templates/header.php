@@ -65,10 +65,17 @@
 </head>
 <body>
 <div class="header">
-    <h1>DBmente - テーブル定義管理</h1>
+    <div style="display: flex; justify-content: space-between; align-items: center;">
+        <h1>DBmente - テーブル定義管理</h1>
+        <?php if (isset($_SESSION['user'])): ?>
+        <div style="color: #ecf0f1;">
+            <span><?= htmlspecialchars($_SESSION['user']['symei'] ?? $_SESSION['user']['sycd']) ?></span>
+            <a href="logout.php" style="margin-left: 15px; color: #e74c3c;">ログアウト</a>
+        </div>
+        <?php endif; ?>
+    </div>
     <nav>
         <a href="table_list.php">テーブル照会</a>
-        <a href="table_edit.php">テーブルメンテ</a>
     </nav>
 </div>
 <div class="container">

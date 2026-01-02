@@ -4,8 +4,7 @@
  */
 require_once __DIR__ . '/includes/config.php';
 require_once __DIR__ . '/includes/Database.php';
-
-session_start();
+require_once __DIR__ . '/includes/auth.php';
 
 // 検索条件の取得
 $tblnm = strtoupper(trim($_GET['tblnm'] ?? ''));
@@ -112,6 +111,7 @@ include __DIR__ . '/templates/header.php';
         <div class="button-row">
             <button type="submit" name="search" value="1" class="btn btn-primary">検索</button>
             <a href="table_list.php" class="btn btn-secondary">クリア</a>
+            <a href="table_detail.php?new=1" class="btn btn-success">新規作成</a>
         </div>
     </form>
 </div>

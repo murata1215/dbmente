@@ -4,6 +4,7 @@
  */
 require_once __DIR__ . '/includes/config.php';
 require_once __DIR__ . '/includes/Database.php';
+require_once __DIR__ . '/includes/auth.php';
 
 $tblnm = strtoupper(trim($_GET['tblnm'] ?? ''));
 
@@ -48,8 +49,11 @@ try {
     $lines[] = "create table " . $tblnm . "(";
 
     $columnLines = [];
-    $firstColumn = null;
-    $uniqueIndexColumns = [];
+    $pkColumn = null;           // PRIMARY KEY用（テーブル名+ID）
+    $uniqueIndexColumns = [];   // UNIQUE INDEX用（TKEY01=1）
+
+    // PRIMARY KEYカラム名（テーブル名+ID）
+    $expectedPkColumn = $tblnm . 'ID';
 
     foreach ($items as $item) {
         $bnm = trim($item['BNM'] ?? '');
@@ -58,15 +62,16 @@ try {
         $lng1 = (int)($item['LNG1'] ?? 0);
         $lng2 = (int)($item['LNG2'] ?? 0);
         $hsu = trim($item['HSU'] ?? '');
+        $tkey01 = trim($item['TKEY01'] ?? '');
         $dflt = trim($item['DFLT'] ?? '');
 
-        // 最初のカラムを記憶（PK用）
-        if ($firstColumn === null) {
-            $firstColumn = $bnm;
+        // PRIMARY KEY用（テーブル名+IDのカラム）
+        if (strtoupper($bnm) === $expectedPkColumn) {
+            $pkColumn = $bnm;
         }
 
-        // UNIQUE INDEX用（HSU=1 かつ UPDTIME以外）
-        if ($hsu === '1' && strtoupper($bnm) !== 'UPDTIME') {
+        // UNIQUE INDEX用（TKEY01に値が入っている場合）
+        if (!empty($tkey01)) {
             $uniqueIndexColumns[] = $bnm;
         }
 
@@ -77,12 +82,16 @@ try {
         switch ($kata) {
             case '9':
             case 'NUMBER':
-                if ($lng1 > 0) {
-                    $colDef .= " NUMBER (" . $lng1 . ")";
+                if ($lng1 > 0 && $lng2 > 0) {
+                    // NUMBER(精度, スケール) 例: NUMBER(4,2)
+                    $colDef .= " NUMBER(" . $lng1 . "," . $lng2 . ")";
+                } elseif ($lng1 > 0) {
+                    $colDef .= " NUMBER(" . $lng1 . ")";
                 } else {
                     $colDef .= " NUMBER";
                 }
                 break;
+            case 'V':
             case 'X':
             case 'VARCHAR':
             case 'VARCHAR2':
@@ -116,22 +125,26 @@ try {
         // デフォルト値
         if (!empty($dflt)) {
             $colDef .= " default " . $dflt;
+        } elseif ($kata === '9' || $kata === 'NUMBER') {
+            // NUMBER型はデフォルト0を必ず設定
+            $colDef .= " default 0";
         }
 
         // NOT NULL
-        if ($hsu === '1') {
+        // 数値型でも文字列型でも対応できるよう緩い比較
+        if ($hsu == '1' || $hsu === 1) {
             $colDef .= " NOT NULL";
         }
 
         $columnLines[] = $colDef;
     }
 
-    // PRIMARY KEY制約
-    if ($firstColumn) {
-        $columnLines[] = " ,constraint " . $tblnm . "_PKC primary key (" . $firstColumn . ")";
+    // PRIMARY KEY制約（テーブル名+IDのカラム）
+    if ($pkColumn) {
+        $columnLines[] = " constraint " . $tblnm . "_PKC primary key (" . $pkColumn . ")";
     }
 
-    $lines[] = implode(" \n ,", $columnLines);
+    $lines[] = implode("\n ,", $columnLines);
     $lines[] = ")";
     $lines[] = ";";
     $lines[] = "";
@@ -148,15 +161,10 @@ try {
     $lines[] = ";";
     $lines[] = "";
 
-    // CREATE UNIQUE INDEX（HSU=1でUPDTIME以外のカラム、最初のPKカラムは除く）
-    // 最初のカラム（PK）を除外
-    $indexColumns = array_filter($uniqueIndexColumns, function($col) use ($firstColumn) {
-        return $col !== $firstColumn;
-    });
-
-    if (!empty($indexColumns)) {
+    // CREATE UNIQUE INDEX（TKEY01=1の全カラム）
+    if (!empty($uniqueIndexColumns)) {
         $lines[] = "create unique index " . $tblnm . "_pk on";
-        $lines[] = " " . $tblnm . "(" . implode(",", $indexColumns) . ")";
+        $lines[] = " " . $tblnm . "(" . implode(",", $uniqueIndexColumns) . ")";
         $lines[] = ";";
     }
 

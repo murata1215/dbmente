@@ -4,6 +4,7 @@
  */
 require_once __DIR__ . '/includes/config.php';
 require_once __DIR__ . '/includes/Database.php';
+require_once __DIR__ . '/includes/auth.php';
 
 $type = $_GET['type'] ?? 'detail';
 $tblnm = strtoupper(trim($_GET['tblnm'] ?? ''));
@@ -82,7 +83,16 @@ try {
     // データ行（値をtrim）
     foreach ($data as $row) {
         $trimmedRow = array_map(function($v) { return is_string($v) ? trim($v) : $v; }, $row);
-        fputcsv($output, array_values($trimmedRow));
+        $values = array_values($trimmedRow);
+
+        // 詳細出力時、必須(HSU)とPK(TKEY01)を1または空に変換
+        if ($type === 'detail') {
+            // HSU: index 6, TKEY01: index 8
+            $values[6] = (trim($values[6] ?? '') === '1') ? '1' : '';
+            $values[8] = (trim($values[8] ?? '') === '1') ? '1' : '';
+        }
+
+        fputcsv($output, $values);
     }
 
     fclose($output);
