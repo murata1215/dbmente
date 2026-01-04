@@ -68,9 +68,11 @@
     <div style="display: flex; justify-content: space-between; align-items: center;">
         <h1>DBmente - テーブル定義管理</h1>
         <?php if (isset($_SESSION['user'])): ?>
-        <div style="color: #ecf0f1;">
+        <div style="color: #ecf0f1; display: flex; align-items: center; gap: 15px;">
             <span><?= htmlspecialchars($_SESSION['user']['symei'] ?? $_SESSION['user']['sycd']) ?></span>
-            <a href="logout.php" style="margin-left: 15px; color: #e74c3c;">ログアウト</a>
+            <a href="password_change.php" style="color: #3498db;">パスワード変更</a>
+            <a href="user_add.php" style="color: #2ecc71;">ユーザー追加</a>
+            <a href="logout.php" style="color: #e74c3c;">ログアウト</a>
         </div>
         <?php endif; ?>
     </div>

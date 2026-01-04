@@ -79,6 +79,31 @@ class Database
     }
 
     /**
+     * INSERT/UPDATE/DELETE文を実行
+     */
+    public function execute(string $sql, array $params = []): bool
+    {
+        $stmt = oci_parse($this->conn, $sql);
+        if (!$stmt) {
+            $e = oci_error($this->conn);
+            throw new Exception('SQLパースエラー: ' . $e['message']);
+        }
+
+        foreach ($params as $key => $value) {
+            oci_bind_by_name($stmt, $key, $params[$key]);
+        }
+
+        if (!oci_execute($stmt, OCI_COMMIT_ON_SUCCESS)) {
+            $e = oci_error($stmt);
+            oci_free_statement($stmt);
+            throw new Exception('SQL実行エラー: ' . $e['message']);
+        }
+
+        oci_free_statement($stmt);
+        return true;
+    }
+
+    /**
      * ページング付きクエリ
      */
     public function queryWithPaging(string $sql, array $params, int $page, int $pageSize): array
